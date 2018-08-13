@@ -3,6 +3,7 @@ import glob
 import time
 import json
 import requests
+import datetime
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
@@ -10,21 +11,21 @@ os.system('modprobe w1-therm')
 base_dir = '/sys/bus/w1/devices/'
 device_folder = glob.glob(base_dir + '28*')[0]
 device_file = device_folder + '/w1_slave'
-url = 'http://192.168.0.112:8080/rpi_data/image'
+url = 'http://192.168.0.112:8080/rpi/temperature'
+SLEEP_TIMER = 5
 
 def getserial():
-  # Extract serial from cpuinfo file
-  cpuserial = "0000000000000000"
-  try:
-    f = open('/proc/cpuinfo','r')
-    for line in f:
-      if line[0:6]=='Serial':
-        cpuserial = line[10:26]
-    f.close()
-  except:
-    cpuserial = "ERROR000000000"
-
-  return cpuserial
+ 	# Extract serial from cpuinfo file
+ 	cpuserial = "0000000000000000"
+ 	try:
+   		f = open('/proc/cpuinfo','r')
+  		for line in f:
+     			if line[0:6]=='Serial':
+       				cpuserial = line[10:26]
+   		f.close()
+  	except:
+    		cpuserial = "ERROR000000000"
+  	return cpuserial
 
 def read_temp_raw():
     f = open(device_file, 'r')
@@ -41,18 +42,21 @@ def read_temp():
     if equals_pos != -1:
         temp_string = lines[1][equals_pos+2:]
         temp_c = float(temp_string) / 1000.0
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
+#        temp_f = temp_c * 9.0 / 5.0 + 32.0
 #        return temp_c, temp_f
 	return temp_c
 
 while True:
 #	print(read_temp())
-	time.sleep(15)
+	time.sleep(SLEEP_TIMER)
 
 	payload = {
-		"id" : 1,
-		"name" : getserial(),
-		"temp" : read_temp()
+		"ownerSerialNumber" : getserial(),
+		"temp" : read_temp(),
+		"milis" : time.mktime(datetime.datetime.now().timetuple()),
+		"name" : "first temperature sensor"
 	}
+
+	print(payload)
 	headers = { 'content-type' : 'application/json' }
 	response = requests.post(url, data=json.dumps(payload), headers=headers)	
