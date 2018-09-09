@@ -1,5 +1,9 @@
-from main import views
 import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(21, GPIO.OUT)
+GPIO.output(21, GPIO.LOW)
+GPIO.cleanup()
 
+from main import views
 views.register()
 

@@ -14,25 +14,11 @@ import datetime
 import base64
 import threading
 
-####################TO REMOVE#################
-def index(request):
-	return HttpResponse('ok it works')
-	
-def sendTest():
-	while(True):
-		url = configFile.serverAddress + '/test'
-		payload = {
-			"serialNumber" : "321",
-			"mac" 		   : "123"
-		}
-		headers = { 'content-type' : 'application/json' }
-		response = requests.post(url, data=json.dumps(payload), headers=headers)
-		time.sleep(3)
-###############################################
+
 workTemperature = False
 workImage = False
 sleep_time_temperature = 5
-sleep_time_image = 5
+sleep_time_image = 0
 
 # Number of seconds before camera takes a picture
 CAMERA_WARMUP_TIMER = 0
@@ -160,7 +146,7 @@ def sendTemperature():
 			"ownerSerialNumber" : getserial(),
 			"temp" : read_temp(),
 			"milis" : time.mktime(datetime.datetime.now().timetuple()),
-			"name" : "first temperature sensor"
+			"name" : "Thermometer"
 		}
 		headers = { 'content-type' : 'application/json' }
 		response = requests.post(url, data=json.dumps(payload), headers=headers)
@@ -169,14 +155,12 @@ def sendTemperature():
 
 def sendImage():
 	global workImage
-	print('img' + str(workImage))
 	while (workImage == True):
-		print('sending img')
 		url = configFile.serverAddress + '/image'
 		image = getBinImage()
 		payload = {
 			"ownerSerialNumber" : getserial(),
-			"name" : 'main camera',
+			"name" : 'Main Camera',
 			"milis" : time.mktime(datetime.datetime.now().timetuple()),
 			"image" : str(image)[2:-1],
 		}
@@ -185,16 +169,31 @@ def sendImage():
 		time.sleep(sleep_time_image)
 
 
-def gpioOn():
-	GPIO.output(21, GPIO.HIGH)
+def sendPeriphery(pinNumber, status):
+	url = configFile.serverAddress + '/periphery'
+	payload = {
+		"owner" : getserial(),
+		"name" : "Diode",
+		"milis" : time.mktime(datetime.datetime.now().timetuple()),
+		"gpioBcm" : pinNumber,
+		"status" : status
+	}
+	headers = { 'content-type' : 'application/json' }
+	response = requests.post(url, data=json.dumps(payload), headers=headers)
+	
+		
+def gpioOn(pinNumber):
+	GPIO.output(pinNumber, GPIO.HIGH)
 	global dioda 
 	dioda = True
+	sendPeriphery(pinNumber, GPIO.HIGH)
 	
 	
-def gpioOff():
-	GPIO.output(21, GPIO.LOW)
+def gpioOff(pinNumber):
+	GPIO.output(pinNumber, GPIO.LOW)
 	global dioda
-	dioda = False	
+	dioda = False
+	sendPeriphery(pinNumber, GPIO.LOW)
 
 
 #################### HTTP VIEWS ####################
@@ -225,14 +224,14 @@ def handleServerMessages(request):
 				if (workTemperature == True):
 					workTemperature = False
 			
-			elif (data.get('type') == 'dioda') :
+			elif (data.get('type') == 'periphery') :
 				if (dioda == False):
-					gpioOn()
+					gpioOn(21)
 				elif (dioda == True):
-					gpioOff()
+					gpioOff(21)
 					
-			elif (data.get('type') == 'diodaoff'):
-				gpioOff()
+			elif (data.get('type') == 'peripheryOff'):
+				gpioOff(21)
 				
 			elif (data.get('type') == 'test'):
 				threadlist = threading.enumerate()
@@ -249,10 +248,11 @@ def handleServerMessages(request):
 
 
 
+workImage = True
+threading.Thread(target = sendImage).start()
 
+workTemperature = True
+threading.Thread(target = sendTemperature).start()
 
-
-
-
-
+sendPeriphery(21, GPIO.LOW)
 
