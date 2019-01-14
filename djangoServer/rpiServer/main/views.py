@@ -17,8 +17,8 @@ import threading
 
 workTemperature = False
 workImage = False
-sleep_time_temperature = 5
-sleep_time_image = 0
+sleep_time_temperature = configFile.temperatureRefreshRate
+sleep_time_image = configFile.imageRefreshRate
 
 # Number of seconds before camera takes a picture
 CAMERA_WARMUP_TIMER = 0
@@ -115,7 +115,7 @@ def getBinImage():
 	return base64.b64encode(stream.getvalue())
 
 
-#################### HTTP POST METHODS ####################
+#################### HTTP METHODS ####################
 def register():
 	url = configFile.serverAddress + '/register'
 	payload = {
@@ -124,7 +124,13 @@ def register():
 	}
 	headers = { 'content-type' : 'application/json' }
 	response = requests.post(url, data=json.dumps(payload), headers=headers)
+	
+	# save device key to file
+	file = open("deviceKey.txt", "w+")
+	file.write(str(response.content)[2:-1])
+	file.close()
 	configFile.deviceKey = str(response.content)[2:-1]
+	
 
 
 def changeKey():
@@ -135,6 +141,11 @@ def changeKey():
 	}
 	headers = { 'content-type' : 'application/json' }
 	response = requests.post(url, data=json.dumps(payload), headers=headers)
+	
+	# save device key to file
+	file = open("deviceKey.txt", "w+")
+	file.write(str(response.content)[2:-1])
+	file.close()
 	configFile.deviceKey = str(response.content)[2:-1]
 
 
@@ -151,6 +162,7 @@ def sendTemperature():
 		headers = { 'content-type' : 'application/json' }
 		response = requests.post(url, data=json.dumps(payload), headers=headers)
 		time.sleep(sleep_time_temperature)
+		print(payload)
 
 
 def sendImage():
@@ -196,7 +208,7 @@ def gpioOff(pinNumber):
 	sendPeriphery(pinNumber, GPIO.LOW)
 
 
-#################### HTTP VIEWS ####################
+#################### VIEWS ####################
 def handleServerMessages(request):
 	if request.method == 'POST':
 		data = JSONParser().parse(request)
@@ -247,7 +259,7 @@ def handleServerMessages(request):
 
 
 
-
+##### RUN THESE ON RPI START #####
 workImage = True
 threading.Thread(target = sendImage).start()
 
